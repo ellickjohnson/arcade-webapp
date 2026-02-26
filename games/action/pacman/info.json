@@ -1,0 +1,9 @@
+{
+  "name": "Pac-Man",
+  "description": "Navigate a maze, eating dots and avoiding ghosts. Power pellets allow you to eat ghosts for a short time. Clear all dots to advance levels.",
+  "controls": "Arrow Keys: Move | P: Pause",
+  "year": "1980",
+  "publisher": "Namco",
+  "genre": "Action",
+  "players": 1
+}

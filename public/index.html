@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retro Arcade - Play Classic Games</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="crt-overlay"></div>
+  
+  <header class="header">
+    <div class="header-content">
+      <h1 class="title">🕹️ RETRO ARCADE</h1>
+      <p class="subtitle">Play Classic DOS Games</p>
+    </div>
+    <button id="help-btn" class="help-btn">?</button>
+  </header>
+
+  <main class="main-content">
+    <!-- Game Menu View -->
+    <div id="menu-view" class="menu-view">
+      <div class="search-bar">
+        <input type="text" id="game-search" placeholder="🔍 Search games...">
+        <select id="category-filter">
+          <option value="all">All Categories</option>
+        </select>
+      </div>
+      
+      <div id="games-grid" class="games-grid">
+        <div class="loading">Loading games...</div>
+      </div>
+    </div>
+
+    <!-- Game Player View -->
+    <div id="player-view" class="player-view hidden">
+      <button id="back-btn" class="back-btn">← Back to Games</button>
+      <div class="game-info-header">
+        <h2 id="game-title" class="game-title"></h2>
+        <div class="game-controls-info">
+          <button id="controls-btn" class="controls-btn">🎮 Controls</button>
+        </div>
+      </div>
+      <div id="emulator-container" class="emulator-container">
+        <div class="emulator-loading">Loading Emulator...</div>
+      </div>
+      <div id="game-controls-panel" class="game-controls-panel hidden">
+        <h3>Controls</h3>
+        <p id="controls-text"></p>
+        <button class="close-btn">Close</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>How to Play</h2>
+      <ul>
+        <li>Select a game from the menu</li>
+        <li>Wait for the emulator to load</li>
+        <li>Use your keyboard to play</li>
+        <li>Press F11 for fullscreen</li>
+        <li>Click the emulator to focus</li>
+      </ul>
+      <h3>Adding Games</h3>
+      <ol>
+        <li>Place game.zip in games/category/name/</li>
+        <li>Create info.json with game details</li>
+        <li>Restart the server</li>
+      </ol>
+      <button class="close-btn">Got it!</button>
+    </div>
+  </div>
+
+  <!-- Error Toast -->
+  <div id="error-toast" class="error-toast hidden"></div>
+
+  <footer class="footer">
+    <p>Powered by js-dos emulator | © 2024 Retro Arcade</p>
+  </footer>
+
+  <script src="https://js-dos.com/cdn/js-dos-api.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "Wolfenstein 3D",
+  "description": "The pioneering first-person shooter game. Escape from Castle Wolfenstein, fight Nazi guards, and stop their evil plans in this classic FPS.",
+  "controls": "Arrow Keys/WASD: Move | Space: Open Door | Ctrl: Fire | Alt: Strafe | P: Pause",
+  "year": "1992",
+  "publisher": "id Software",
+  "genre": "FPS",
+  "players": 1
+}

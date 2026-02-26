@@ -1,0 +1,9 @@
+{
+  "name": "FIFA Soccer",
+  "description": "Experience classic soccer gameplay with retro graphics. Control your team, score goals, and become the champion in this classic sports game.",
+  "controls": "Arrow Keys: Move Player | Z: Pass/Shoot | X: Slide Tackle | Space: Sprint | P: Pause",
+  "year": "1993",
+  "publisher": "EA Sports",
+  "genre": "Sports",
+  "players": 2
+}

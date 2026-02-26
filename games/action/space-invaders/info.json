@@ -1,0 +1,9 @@
+{
+  "name": "Space Invaders",
+  "description": "Classic arcade shooter where you defend Earth from waves of alien invaders. Move your ship left and right, shooting at descending alien formations.",
+  "controls": "Arrow Keys: Move Left/Right | Space: Fire | P: Pause",
+  "year": "1978",
+  "publisher": "Taito",
+  "genre": "Shooter",
+  "players": 1
+}

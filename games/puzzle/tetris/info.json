@@ -1,0 +1,9 @@
+{
+  "name": "Tetris",
+  "description": "The classic block-stacking puzzle game. Rotate and move falling tetrominoes to complete horizontal lines and clear them from the screen.",
+  "controls": "Left/Right: Move | Up: Rotate | Down: Soft Drop | Space: Hard Drop | P: Pause",
+  "year": "1984",
+  "publisher": "Spectrum HoloByte",
+  "genre": "Puzzle",
+  "players": 1
+}

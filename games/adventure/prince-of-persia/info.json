@@ -1,0 +1,9 @@
+{
+  "name": "Prince of Persia",
+  "description": "A classic platformer where you play as a prince trying to escape from a dungeon within 60 minutes. Navigate traps, fight guards, and save the princess.",
+  "controls": "Arrow Keys: Move | Shift: Jump | Z: Draw Sword | Space: Action | P: Pause",
+  "year": "1989",
+  "publisher": "Broderbund",
+  "genre": "Platformer",
+  "players": 1
+}
