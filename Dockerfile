@@ -1,26 +1,8 @@
-# Multi-stage build for optimized production image
-
-# Stage 1: Builder
-FROM node:20-alpine AS builder
-
-# Set working directory
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
-
-# Copy application code
-COPY . .
-
-# Build application
-RUN npm run build
-
-# Stage 2: Production
+# Single-stage build for simple Express application
 FROM node:20-alpine
 
 # Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
+RUN apk add --no-cache dumb-init curl
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
@@ -29,10 +11,18 @@ RUN addgroup -g 1001 -S nodejs && \
 # Set working directory
 WORKDIR /app
 
-# Copy from builder
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/package.json ./package.json
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy application files
+COPY src/ ./src/
+COPY public/ ./public/
+
+# Change ownership
+RUN chown -R nodejs:nodejs /app
 
 # Switch to non-root user
 USER nodejs
@@ -45,9 +35,9 @@ ENV PORT=3000
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/health/live', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3000/health/live || exit 1
 
 # Start application
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/main.js"]
+CMD ["node", "src/server.js"]
