@@ -4,6 +4,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import https from 'https';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,94 +29,111 @@ app.get('/health', (req, res) => {
 const publicPath = path.join(__dirname, '../public');
 app.use(express.static(publicPath));
 
-// Serve game ROMs from games directory
-const gamesPath = path.join(__dirname, '../games');
-app.use('/roms', express.static(gamesPath));
+// Cache for games list
+let gamesCache = null;
+let cacheTime = 0;
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
-// Built-in NES game library (public domain/homebrew ROMs)
-const BUILTIN_NES_GAMES = [
-  {
-    id: 'nes/little-medusa',
-    name: 'Little Medusa',
-    category: 'Puzzle',
-    platform: 'nes',
-    description: 'A puzzle game where you help Medusa escape a maze',
-    year: '2010',
-    romPath: 'https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/little-medusa.nes',
-    screenshot: null
-  },
-  {
-    id: 'nes/neko',
-    name: 'Neko',
-    category: 'Action',
-    platform: 'nes',
-    description: 'A cute cat adventure game',
-    year: '2011',
-    romPath: 'https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/neko.nes',
-    screenshot: null
-  },
-  {
-    id: 'nes/concentration-room',
-    name: 'Concentration Room',
-    category: 'Puzzle',
-    platform: 'nes',
-    description: 'A memory matching game',
-    year: '2010',
-    romPath: 'https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/concentration-room.nes',
-    screenshot: null
-  },
-  {
-    id: 'nes/driar',
-    name: 'Driar',
-    category: 'Adventure',
-    platform: 'nes',
-    description: 'A dragon-themed platformer',
-    year: '2011',
-    romPath: 'https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/driar.nes',
-    screenshot: null
-  }
-];
-
-// Built-in DOS games (existing structure)
-const BUILTIN_DOS_GAMES = [];
+// Fetch games from retrobrews/nes-games GitHub repo
+async function fetchGamesFromGitHub() {
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: '/repos/retrobrews/nes-games/contents?ref=master',
+      method: 'GET',
+      headers: {
+        'User-Agent': 'NES-Arcade/1.0',
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const files = JSON.parse(data);
+          const games = [];
+          
+          // Group .nes files with their .png and .txt
+          const nesFiles = files.filter(f => f.name.endsWith('.nes'));
+          
+          for (const nes of nesFiles) {
+            const baseName = nes.name.replace('.nes', '');
+            const png = files.find(f => f.name === baseName + '.png');
+            const txt = files.find(f => f.name === baseName + '.txt');
+            
+            // Clean up name for display
+            const displayName = baseName
+              .replace(/-/g, ' ')
+              .replace(/([A-Z])/g, ' $1')
+              .replace(/^./, str => str.toUpperCase())
+              .trim();
+            
+            games.push({
+              id: baseName,
+              name: displayName,
+              romUrl: `https://raw.githubusercontent.com/retrobrews/nes-games/master/${nes.name}`,
+              screenshot: png ? `https://raw.githubusercontent.com/retrobrews/nes-games/master/${png.name}` : null,
+              description: txt ? `https://raw.githubusercontent.com/retrobrews/nes-games/master/${txt.name}` : null,
+              category: 'Homebrew',
+              source: 'retrobrews'
+            });
+          }
+          
+          resolve(games);
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
 
 // API route to get list of available games
 app.get('/api/games', async (req, res) => {
   try {
-    const fs = await import('fs');
-    const gamesDir = path.join(__dirname, '../games');
-    const games = [...BUILTIN_NES_GAMES];
-    
-    // Also scan local games directory for additional ROMs
-    if (fs.existsSync(gamesDir)) {
-      const categories = fs.readdirSync(gamesDir, { withFileTypes: true })
-        .filter(dirent => dirent.isDirectory())
-        .map(dirent => dirent.name);
-      
-      for (const category of categories) {
-        const categoryPath = path.join(gamesDir, category);
-        const items = fs.readdirSync(categoryPath, { withFileTypes: true });
-        
-        for (const item of items) {
-          if (item.isFile() && item.name.endsWith('.nes')) {
-            const name = item.name.replace('.nes', '').replace(/-/g, ' ');
-            games.push({
-              id: `local/${category}/${item.name}`,
-              name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-              category: category.charAt(0).toUpperCase() + category.slice(1),
-              description: 'Local ROM',
-              romUrl: `/roms/${category}/${item.name}`,
-              screenshot: null
-            });
-          }
-        }
-      }
+    // Use cache if valid
+    const now = Date.now();
+    if (gamesCache && (now - cacheTime) < CACHE_TTL) {
+      return res.json({ games: gamesCache, cached: true });
     }
     
-    res.json({ games });
+    // Fetch from GitHub
+    const games = await fetchGamesFromGitHub();
+    gamesCache = games;
+    cacheTime = now;
+    
+    console.log(`Loaded ${games.length} games from GitHub`);
+    res.json({ games, cached: false });
   } catch (error) {
     console.error('Error loading games:', error);
-    res.json({ games: BUILTIN_NES_GAMES });
+    // Return cached data if available, else empty
+    res.json({ games: gamesCache || [], error: 'Failed to fetch games' });
+  }
+});
+
+// API route to search games
+app.get('/api/games/search', async (req, res) => {
+  try {
+    const query = (req.query.q || '').toLowerCase();
+    
+    // Use cache or fetch
+    const now = Date.now();
+    if (!gamesCache || (now - cacheTime) >= CACHE_TTL) {
+      gamesCache = await fetchGamesFromGitHub();
+      cacheTime = now;
+    }
+    
+    const filtered = gamesCache.filter(g => 
+      g.name.toLowerCase().includes(query) ||
+      g.id.toLowerCase().includes(query)
+    );
+    
+    res.json({ games: filtered, query });
+  } catch (error) {
+    console.error('Error searching games:', error);
+    res.json({ games: [], error: error.message });
   }
 });
 
@@ -139,7 +157,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎮 NES Arcade Webapp running on port ${PORT}`);
   console.log(`🌐 Environment: ${NODE_ENV}`);
   console.log(`💚 Health check: http://localhost:${PORT}/health`);
-  console.log(`🕹️  Games available: ${BUILTIN_NES_GAMES.length} built-in`);
 });
 
 export default app;
