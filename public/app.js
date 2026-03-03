@@ -5,7 +5,11 @@ class RetroArcade {
     this.games = [];
     this.filteredGames = [];
     this.currentGame = null;
-    this.emulator = null;
+    this.currentPlatform = 'dos';
+    this.dosEmulator = null;
+    this.nesEmulator = null;
+    this.nesFrameId = null;
+    this.romData = null;
     this.init();
   }
 
@@ -13,6 +17,7 @@ class RetroArcade {
     this.cacheDOM();
     this.bindEvents();
     await this.loadGames();
+    this.setupNES();
   }
 
   cacheDOM() {
@@ -31,11 +36,21 @@ class RetroArcade {
       helpBtn: document.getElementById('help-btn'),
       helpModal: document.getElementById('help-modal'),
       errorToast: document.getElementById('error-toast'),
-      closeButtons: document.querySelectorAll('.close-btn')
+      closeButtons: document.querySelectorAll('.close-btn'),
+      platformButtons: document.querySelectorAll('.platform-btn'),
+      nesRomLoader: document.getElementById('nes-rom-loader'),
+      romUrlInput: document.getElementById('rom-url-input'),
+      loadRomBtn: document.getElementById('load-rom-btn'),
+      romFileInput: document.getElementById('rom-file-input')
     };
   }
 
   bindEvents() {
+    // Platform switching
+    this.dom.platformButtons.forEach(btn => {
+      btn.addEventListener('click', () => this.switchPlatform(btn.dataset.platform));
+    });
+
     // Search functionality
     this.dom.gameSearch.addEventListener('input', () => this.filterGames());
     this.dom.categoryFilter.addEventListener('change', () => this.filterGames());
@@ -50,6 +65,13 @@ class RetroArcade {
     // Help modal
     this.dom.helpBtn.addEventListener('click', () => this.showHelp());
     this.dom.helpModal.querySelector('.close-btn').addEventListener('click', () => this.hideHelp());
+
+    // NES ROM loading
+    this.dom.loadRomBtn.addEventListener('click', () => this.loadCustomROM());
+    this.dom.romUrlInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.loadCustomROM();
+    });
+    this.dom.romFileInput.addEventListener('change', (e) => this.loadROMFile(e));
 
     // Close all modals on outside click
     this.dom.helpModal.addEventListener('click', (e) => {
@@ -72,6 +94,25 @@ class RetroArcade {
         this.toggleFullscreen();
       }
     });
+  }
+
+  switchPlatform(platform) {
+    this.currentPlatform = platform;
+    
+    // Update UI
+    this.dom.platformButtons.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.platform === platform);
+    });
+    
+    // Show/hide NES ROM loader
+    if (platform === 'nes') {
+      this.dom.nesRomLoader.classList.remove('hidden');
+    } else {
+      this.dom.nesRomLoader.classList.add('hidden');
+    }
+    
+    // Filter games by platform
+    this.filterGames();
   }
 
   async loadGames() {
@@ -106,10 +147,11 @@ class RetroArcade {
     const category = this.dom.categoryFilter.value;
 
     this.filteredGames = this.games.filter(game => {
+      const matchesPlatform = game.platform === this.currentPlatform;
       const matchesSearch = game.name.toLowerCase().includes(searchTerm) ||
                            game.description.toLowerCase().includes(searchTerm);
       const matchesCategory = category === 'all' || game.category === category;
-      return matchesSearch && matchesCategory;
+      return matchesPlatform && matchesSearch && matchesCategory;
     });
 
     this.renderGames();
@@ -117,7 +159,7 @@ class RetroArcade {
 
   renderGames() {
     if (this.filteredGames.length === 0) {
-      this.dom.gamesGrid.innerHTML = '<div class="loading">No games found</div>';
+      this.dom.gamesGrid.innerHTML = `<div class="loading">${this.currentPlatform === 'nes' ? 'No NES games loaded. Use custom ROM below.' : 'No games found'}</div>`;
       return;
     }
 
@@ -125,6 +167,7 @@ class RetroArcade {
       <div class="game-card" data-id="${game.id}">
         <div class="game-card-image">
           ${game.screenshot ? `<img src="${game.screenshot}" alt="${game.name}" onerror="this.style.display='none';this.parentElement.innerHTML='🕹️'">` : '🕹️'}
+          ${game.platform ? `<span class="game-platform-badge">${game.platform.toUpperCase()}</span>` : ''}
         </div>
         <div class="game-card-content">
           <h3 class="game-card-title">${game.name}</h3>
@@ -149,18 +192,31 @@ class RetroArcade {
 
     // Update UI
     this.dom.gameTitle.textContent = this.currentGame.name;
-    this.dom.controlsText.textContent = this.currentGame.controls || 'Use keyboard controls shown in game';
+    
+    const controls = this.getControlsText();
+    this.dom.controlsText.textContent = controls;
     
     // Show player view
     this.dom.menuView.classList.add('hidden');
     this.dom.playerView.classList.remove('hidden');
 
-    // Load emulator
-    await this.loadEmulator();
+    // Load emulator based on platform
+    if (this.currentPlatform === 'nes') {
+      await this.loadNESEmulator(this.currentGame.romPath);
+    } else {
+      await this.loadDOSEmulator();
+    }
   }
 
-  async loadEmulator() {
-    this.dom.emulatorContainer.innerHTML = '<div class="emulator-loading">Loading Emulator...</div>';
+  getControlsText() {
+    if (this.currentPlatform === 'nes') {
+      return 'Arrow keys: D-Pad | Z: A Button | X: B Button | Enter: Start | Shift: Select';
+    }
+    return this.currentGame.controls || 'Arrow keys: Move | Z: Action | X: Alt Action | Enter: Start';
+  }
+
+  async loadDOSEmulator() {
+    this.dom.emulatorContainer.innerHTML = '<div class="emulator-loading">Loading DOS Emulator...</div>';
 
     try {
       const options = {
@@ -169,12 +225,10 @@ class RetroArcade {
         fullscreen: false
       };
 
-      // Check if js-dos is available
       if (typeof Dos === 'undefined') {
         throw new Error('js-dos library not loaded. Please check your internet connection.');
       }
 
-      // Create canvas element
       const canvas = document.createElement('canvas');
       canvas.id = 'dos-canvas';
       canvas.style.width = '100%';
@@ -182,21 +236,19 @@ class RetroArcade {
       this.dom.emulatorContainer.innerHTML = '';
       this.dom.emulatorContainer.appendChild(canvas);
 
-      // Initialize js-dos emulator
       const bundleUrl = this.currentGame.romPath;
       const ci = Dos(canvas, options);
       
-      // Load the game
       await ci.fs.extract(bundleUrl);
       await ci.main(['/game.exe']);
       
-      this.emulator = ci;
+      this.dosEmulator = ci;
     } catch (error) {
-      console.error('Emulator load error:', error);
+      console.error('DOS Emulator load error:', error);
       this.showError(`Failed to load game: ${error.message}`);
       this.dom.emulatorContainer.innerHTML = `
         <div class="error-container">
-          <p class="error-message">Failed to load emulator</p>
+          <p class="error-message">Failed to load DOS emulator</p>
           <p class="error-detail">${error.message}</p>
           <p class="error-tip">Make sure the ROM file exists at: ${this.currentGame.romPath}</p>
         </div>
@@ -204,18 +256,206 @@ class RetroArcade {
     }
   }
 
-  backToMenu() {
-    // Stop emulator if running
-    if (this.emulator) {
-      try {
-        this.emulator.exit();
-      } catch (error) {
-        console.error('Error stopping emulator:', error);
-      }
-      this.emulator = null;
+  setupNES() {
+    if (typeof jsnes === 'undefined') {
+      console.error('jsnes library not loaded');
+      return;
     }
 
-    // Switch views
+    this.nesEmulator = new jsnes.NES({
+      onFrame: this.onFrame.bind(this),
+      onAudioSample: this.onAudioSample.bind(this)
+    });
+  }
+
+  onFrame(buffer) {
+    const imageData = this.nesImageData;
+    if (!imageData) return;
+
+    for (let i = 0; i < 256 * 240; i++) {
+      const color = buffer[i];
+      imageData.data[i * 4] = color & 0xff;
+      imageData.data[i * 4 + 1] = (color >> 8) & 0xff;
+      imageData.data[i * 4 + 2] = (color >> 16) & 0xff;
+      imageData.data[i * 4 + 3] = 0xff;
+    }
+  }
+
+  onAudioSample() {
+  }
+
+  async loadNESEmulator(romPath) {
+    this.dom.emulatorContainer.innerHTML = '<div class="emulator-loading">Loading NES Emulator...</div>';
+
+    try {
+      if (typeof jsnes === 'undefined') {
+        throw new Error('jsnes library not loaded. Please check your internet connection.');
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.id = 'nes-canvas';
+      canvas.width = 256;
+      canvas.height = 240;
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.imageRendering = 'pixelated';
+      this.dom.emulatorContainer.innerHTML = '';
+      this.dom.emulatorContainer.appendChild(canvas);
+
+      this.nesCanvas = canvas;
+      this.nesCtx = canvas.getContext('2d');
+      this.nesImageData = this.nesCtx.createImageData(256, 240);
+
+      const romData = await this.fetchROM(romPath);
+      this.nesEmulator.loadROM(romData);
+
+      this.setupNESControls();
+
+      this.nesFrameId = requestAnimationFrame(this.nesFrameLoop.bind(this));
+    } catch (error) {
+      console.error('NES Emulator load error:', error);
+      this.showError(`Failed to load NES game: ${error.message}`);
+      this.dom.emulatorContainer.innerHTML = `
+        <div class="error-container">
+          <p class="error-message">Failed to load NES emulator</p>
+          <p class="error-detail">${error.message}</p>
+        </div>
+      `;
+    }
+  }
+
+  async fetchROM(url) {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ROM: ${response.statusText}`);
+    }
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  }
+
+  nesFrameLoop() {
+    this.nesEmulator.frame();
+    this.nesCtx.putImageData(this.nesImageData, 0, 0);
+    this.nesFrameId = requestAnimationFrame(this.nesFrameLoop.bind(this));
+  }
+
+  setupNESControls() {
+    const nesKeys = {
+      'ArrowLeft': jsnes.Controller.BUTTON_LEFT,
+      'ArrowRight': jsnes.Controller.BUTTON_RIGHT,
+      'ArrowUp': jsnes.Controller.BUTTON_UP,
+      'ArrowDown': jsnes.Controller.BUTTON_DOWN,
+      'z': jsnes.Controller.BUTTON_A,
+      'x': jsnes.Controller.BUTTON_B,
+      'Enter': jsnes.Controller.BUTTON_START,
+      'Shift': jsnes.Controller.BUTTON_SELECT
+    };
+
+    document.addEventListener('keydown', (e) => {
+      if (this.currentPlatform !== 'nes' || !this.nesEmulator) return;
+      
+      const button = nesKeys[e.key];
+      if (button !== undefined) {
+        this.nesEmulator.buttonDown(1, button);
+        e.preventDefault();
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (this.currentPlatform !== 'nes' || !this.nesEmulator) return;
+      
+      const button = nesKeys[e.key];
+      if (button !== undefined) {
+        this.nesEmulator.buttonUp(1, button);
+      }
+    });
+  }
+
+  async loadCustomROM() {
+    const url = this.dom.romUrlInput.value.trim();
+    if (!url) {
+      this.showError('Please enter a ROM URL');
+      return;
+    }
+
+    try {
+      this.currentGame = {
+        id: 'custom-nes',
+        name: 'Custom ROM',
+        platform: 'nes',
+        romPath: url
+      };
+
+      this.dom.gameTitle.textContent = 'Custom NES ROM';
+      this.dom.controlsText.textContent = 'Arrow keys: D-Pad | Z: A Button | X: B Button | Enter: Start | Shift: Select';
+      
+      this.dom.menuView.classList.add('hidden');
+      this.dom.playerView.classList.remove('hidden');
+      
+      await this.loadNESEmulator(url);
+      this.dom.romUrlInput.value = '';
+    } catch (error) {
+      this.showError(`Failed to load ROM: ${error.message}`);
+    }
+  }
+
+  async loadROMFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const romData = new Uint8Array(arrayBuffer);
+
+      this.currentGame = {
+        id: 'file-nes',
+        name: file.name.replace('.nes', ''),
+        platform: 'nes'
+      };
+
+      this.dom.gameTitle.textContent = file.name;
+      this.dom.controlsText.textContent = 'Arrow keys: D-Pad | Z: A Button | X: B Button | Enter: Start | Shift: Select';
+      
+      this.dom.menuView.classList.add('hidden');
+      this.dom.playerView.classList.remove('hidden');
+
+      const canvas = document.createElement('canvas');
+      canvas.id = 'nes-canvas';
+      canvas.width = 256;
+      canvas.height = 240;
+      canvas.style.width = '100%';
+      canvas.style.height = '100%';
+      canvas.style.imageRendering = 'pixelated';
+      this.dom.emulatorContainer.innerHTML = '';
+      this.dom.emulatorContainer.appendChild(canvas);
+
+      this.nesCanvas = canvas;
+      this.nesCtx = canvas.getContext('2d');
+      this.nesImageData = this.nesCtx.createImageData(256, 240);
+
+      this.nesEmulator.loadROM(romData);
+      this.setupNESControls();
+      this.nesFrameId = requestAnimationFrame(this.nesFrameLoop.bind(this));
+    } catch (error) {
+      this.showError(`Failed to load ROM: ${error.message}`);
+    }
+  }
+
+  backToMenu() {
+    if (this.dosEmulator) {
+      try {
+        this.dosEmulator.exit();
+      } catch (error) {
+        console.error('Error stopping DOS emulator:', error);
+      }
+      this.dosEmulator = null;
+    }
+
+    if (this.nesFrameId) {
+      cancelAnimationFrame(this.nesFrameId);
+      this.nesFrameId = null;
+    }
+
     this.dom.playerView.classList.add('hidden');
     this.dom.menuView.classList.remove('hidden');
     this.currentGame = null;
@@ -254,7 +494,6 @@ class RetroArcade {
   }
 }
 
-// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   window.arcade = new RetroArcade();
 });
