@@ -1,39 +1,41 @@
-# [Project Name]
+# NES Arcade Webapp
 
-[Short description of what this project does]
+A web-based Nintendo Entertainment System (NES) emulator that lets you play classic NES games directly in your browser.
 
 ## Overview
 
-[Detailed description of the project, its purpose, and main features]
+This is a modern web application that provides a nostalgic gaming experience by emulating the original Nintendo Entertainment System. Built with Node.js and the jsnes library, it features a retro-styled interface with CRT effects, support for loading ROMs from URLs or local files, and includes a curated library of public domain/homebrew NES games.
+
+## Features
+
+- **🎮 NES Emulation**: Play authentic NES games using the jsnes emulator library
+- **📥 Flexible ROM Loading**: Load games from URLs, upload from your device, or use built-in games
+- **🕹️ Keyboard Controls**: Full NES controller mapping using keyboard keys
+- **📺 CRT Effect**: Authentic retro CRT screen overlay effect
+- **🔍 Game Search**: Quick search through available games
+- **📱 Responsive Design**: Works on desktop and mobile browsers
+- **🎨 Retro Styling**: NES-themed UI with pixel fonts and nostalgic design
 
 ## Architecture
 
 ```mermaid
 graph TD
-    A[User] --> B[API Gateway]
-    B --> C[Service A]
-    B --> D[Service B]
-    C --> E[Database]
-    D --> E
-    C --> F[Cache]
-    D --> F
+    A[User Browser] --> B[NES Arcade Webapp]
+    B --> C[jsnes Emulator]
+    B --> D[ROM Sources]
+    D --> E[Built-in Games]
+    D --> F[URL Loading]
+    D --> G[Local Upload]
 ```
 
 ## Tech Stack
 
 | Component | Technology | Version |
 |-----------|-----------|---------|
-| Runtime | [Node.js/Python/etc] | [Version] |
-| Framework | [Express/FastAPI/etc] | [Version] |
-| Database | [PostgreSQL/MongoDB/etc] | [Version] |
-| Cache | [Redis/etc] | [Version] |
-| Message Queue | [RabbitMQ/Kafka/etc] | [Version] |
-
-## Prerequisites
-
-- Docker and Docker Compose
-- [Other prerequisites]
-- [Other prerequisites]
+| Runtime | Node.js | >=18.0.0 |
+| Framework | Express | ^4.18.2 |
+| Emulator | jsnes | ^1.2.1 |
+| Middleware | Compression, CORS, Morgan | - |
 
 ## Quick Start
 
@@ -44,40 +46,55 @@ graph TD
 git clone https://github.com/ellickjohnson/arcade-webapp.git
 cd arcade-webapp
 
-# Copy environment file
-cp .env.example .env
-
-# Edit .env with your configuration
-nano .env
-
 # Start the application
 docker-compose up -d
 
-# Check logs
-docker-compose logs -f
-
 # Access the application
-open http://localhost:<port>
+open http://localhost:3000
 ```
 
 ### Local Development
 
 ```bash
 # Install dependencies
-npm install  # or: pip install -r requirements.txt
+npm install
 
-# Copy environment file
-cp .env.example .env
+# Start the application in development mode
+npm run dev
 
-# Run database migrations (if applicable)
-npm run migrate  # or: alembic upgrade head
-
-# Start the application
-npm run dev  # or: python main.py
-
-# Run tests
-npm test  # or: pytest
+# Start in production mode
+npm start
 ```
+
+## Controls
+
+### NES Controller Mapping
+
+| NES Controller | Keyboard Key |
+|----------------|--------------|
+| D-Pad (Up) | ↑ |
+| D-Pad (Down) | ↓ |
+| D-Pad (Left) | ← |
+| D-Pad (Right) | → |
+| A Button | Z |
+| B Button | X |
+| Start | Enter |
+| Select | Shift |
+
+### UI Controls
+
+- **Click game area** to focus and enable keyboard controls
+- **F11** or ⛶ button for fullscreen mode
+- **🔄** button to restart the game
+
+## Built-in Games
+
+The application includes several public domain/homebrew NES games:
+
+- **Little Medusa** - A puzzle game where you help Medusa escape a maze
+- **Neko** - A cute cat adventure game
+- **Concentration Room** - A memory matching game
+- **Driar** - A dragon-themed platformer
 
 ## Configuration
 
@@ -86,9 +103,6 @@ npm test  # or: pytest
 | Variable | Required | Description | Default |
 |----------|----------|-------------|---------|
 | `PORT` | No | Application port | `3000` |
-| `DATABASE_URL` | Yes | Database connection string | - |
-| `REDIS_URL` | Yes | Redis connection string | - |
-| `LOG_LEVEL` | No | Logging level | `info` |
 | `NODE_ENV` | No | Environment | `development` |
 
 ### Docker Configuration
@@ -96,7 +110,6 @@ npm test  # or: pytest
 - **Image:** `ghcr.io/ellickjohnson/arcade-webapp:latest`
 - **Restart Policy:** `unless-stopped`
 - **Health Check:** `/health` endpoint
-- **Resource Limits:** Memory: 512MB, CPU: 0.5
 
 ## API Documentation
 
@@ -108,13 +121,31 @@ GET /health
 
 Returns the health status of the application.
 
-### [Main API Endpoint]
+### Get Games List
 
 ```bash
-[Method] /[endpoint]
+GET /api/games
 ```
 
-[Description of what this endpoint does]
+Returns a list of all available NES games.
+
+Response example:
+```json
+{
+  "games": [
+    {
+      "id": "nes/little-medusa",
+      "name": "Little Medusa",
+      "category": "Puzzle",
+      "platform": "nes",
+      "description": "A puzzle game where you help Medusa escape a maze",
+      "year": "2010",
+      "romPath": "https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/little-medusa.nes",
+      "screenshot": null
+    }
+  ]
+}
+```
 
 ## Development
 
@@ -122,45 +153,16 @@ Returns the health status of the application.
 
 ```
 .
-├── src/               # Source code
-│   ├── controllers/   # Request handlers
-│   ├── services/      # Business logic
-│   ├── models/        # Data models
-│   � routes/          # API routes
-│   ├── middleware/    # Custom middleware
-│   └── utils/         # Utility functions
-├── tests/             # Test files
-├── config/            # Configuration files
-├── scripts/           # Utility scripts
-├── Dockerfile         # Docker image definition
+├── public/            # Static files (HTML, CSS, JS)
+│   ├── index.html    # Main HTML file
+│   ├── app.js        # Frontend JavaScript
+│   └── styles.css    # NES-themed styles
+├── src/              # Source code
+│   └── server.js     # Express server
+├── games/            # Local ROM storage
+├── Dockerfile        # Docker image definition
 ├── docker-compose.yml # Docker compose configuration
-└── README.md          # This file
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Run specific test file
-npm test -- path/to/test.spec.js
-```
-
-### Code Quality
-
-```bash
-# Format code
-npm run format
-
-# Lint code
-npm run lint
-
-# Type check (if TypeScript)
-npm run type-check
+└── package.json      # Node.js dependencies
 ```
 
 ## Deployment
@@ -170,8 +172,7 @@ npm run type-check
 This project uses GitHub Actions for automated builds and deployments.
 
 1. Push to `main` branch → Builds and pushes Docker image to GHCR
-2. Create release tag → Creates GitHub release
-3. Manual deploy to Portainer using image from GHCR
+2. Pull latest image in Portainer to deploy
 
 ### Manual Deployment
 
@@ -181,80 +182,61 @@ docker build -t ghcr.io/ellickjohnson/arcade-webapp:latest .
 
 # Push to GHCR
 docker push ghcr.io/ellickjohnson/arcade-webapp:latest
-
-# Deploy to Portainer
-# Use Portainer UI to deploy the stack
 ```
 
-### Rollback Procedure
+### Portainer Deployment
 
-```bash
-# Use the rollback script
-./scripts/rollback.sh arcade-webapp <previous-tag>
+Use Portainer to deploy the stack with the following docker-compose.yml:
 
-# Or manually via Portainer
-# 1. Go to Stack settings
-# 2. Edit docker-compose.yml
-# 3. Change image tag to previous version
-# 4. Update the stack
+```yaml
+version: '3.8'
+services:
+  arcade-webapp:
+    image: ghcr.io/ellickjohnson/arcade-webapp:latest
+    container_name: arcade-webapp
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
 ```
-
-## Monitoring & Observability
-
-### Health Checks
-
-- **Liveness:** `GET /health/live` - Container is running
-- **Readiness:** `GET /health/ready` - Ready to receive traffic
-- **Detailed:** `GET /health` - Full health status
-
-### Logging
-
-Logs are written to:
-- Docker container logs: `docker logs <container>`
-- [Centralized logging if configured]
-
-### Metrics
-
-Metrics are exposed at `/metrics` (if configured)
 
 ## Troubleshooting
 
 ### Common Issues
 
+**Issue:** Game won't load
+```bash
+# Check browser console for errors
+# Verify ROM URL is accessible
+# Ensure you click the game area to focus
+```
+
+**Issue:** Keyboard controls not responding
+```bash
+# Click the game canvas to focus it
+# Check browser console for errors
+# Ensure no other window has focus
+```
+
 **Issue:** Container won't start
 ```bash
 # Check logs
-docker logs <container-name>
+docker logs arcade-webapp
 
-# Check environment variables
-docker exec <container-name> env
+# Verify port 3000 is available
+netstat -an | grep 3000
 ```
 
-**Issue:** Database connection failed
-```bash
-# Check database container
-docker ps | grep db
+## Legal Notice
 
-# Test connection
-docker exec <container-name> sh -c "nc -zv $DATABASE_HOST 5432"
-```
+This emulator is designed for playing:
+1. Public domain games
+2. Homebrew games created by independent developers
+3. Games you own and have the legal right to play
 
-**Issue:** High memory usage
-```bash
-# Check resource usage
-docker stats
-
-# Restart container
-docker restart <container-name>
-```
-
-## Security
-
-- Secrets are managed via environment variables
-- No secrets are committed to the repository
-- Dependencies are scanned for vulnerabilities
-- Container runs as non-root user
-- Security headers are configured
+Please respect copyright laws and only play games you have the right to use.
 
 ## Contributing
 
@@ -268,15 +250,13 @@ docker restart <container-name>
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
+## Credits
 
-For support, email [support@email] or open an issue in the repository.
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a history of changes.
+- **jsnes** - NES emulator library by Ben Firshman
+- **NES ROMs** - Homebrew games from various developers
+- **Retro Design** - Inspired by classic NES aesthetics
 
 ---
 
-**Last Updated:** [Date]
-**Maintained by:** [Your Name/Team]
+**Last Updated:** March 3, 2026
+**Maintained by:** ellickjohnson
