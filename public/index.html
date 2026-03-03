@@ -5,142 +5,68 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NES Arcade - Play Classic Nintendo Games</title>
   <link rel="stylesheet" href="/styles.css">
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="crt-overlay"></div>
   
   <header class="header">
-    <div class="header-content">
-      <h1 class="title">🎮 NES ARCADE</h1>
-      <p class="subtitle">Play Classic Nintendo Games</p>
-    </div>
-    <button id="help-btn" class="help-btn">?</button>
+    <h1 class="title">🎮 NES ARCADE</h1>
+    <p class="subtitle">Play Homebrew Nintendo Games</p>
   </header>
 
   <main class="main-content">
-    <!-- Game Menu View -->
-    <div id="menu-view" class="menu-view">
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="games">🎮 Games</button>
-        <button class="tab-btn" data-tab="load-rom">📥 Load ROM</button>
+    <!-- Menu View -->
+    <div id="menu-view">
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="🔍 Search games...">
       </div>
-
-      <!-- Games Tab -->
-      <div id="games-tab" class="tab-content active">
-        <div class="search-bar">
-          <input type="text" id="game-search" placeholder="🔍 Search games...">
-        </div>
-        
-        <div id="games-grid" class="games-grid">
-          <div class="loading">Loading games...</div>
-        </div>
-      </div>
-
-      <!-- Load ROM Tab -->
-      <div id="load-rom-tab" class="tab-content">
-        <div class="rom-loader">
-          <h3>Load NES ROM from URL</h3>
-          <p class="hint">Enter a direct URL to a .nes ROM file</p>
-          <div class="url-input-group">
-            <input type="text" id="rom-url" placeholder="https://example.com/game.nes">
-            <button id="load-rom-btn" class="load-btn">Load ROM</button>
-          </div>
-          
-          <div class="rom-sources">
-            <h4>Sample ROM Sources</h4>
-            <p class="hint">These are public domain/homebrew NES ROMs:</p>
-            <div class="sample-roms">
-              <button class="sample-rom-btn" data-url="https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/little-medusa.nes">
-                🎮 Little Medusa
-              </button>
-              <button class="sample-rom-btn" data-url="https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/neko.nes">
-                🐱 Neko
-              </button>
-              <button class="sample-rom-btn" data-url="https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/concentration-room.nes">
-                🧠 Concentration Room
-              </button>
-              <button class="sample-rom-btn" data-url="https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/driar.nes">
-                🐉 Driar
-              </button>
-              <button class="sample-rom-btn" data-url="https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/mgss.nes">
-                🔫 MGSS
-              </button>
-            </div>
-          </div>
-
-          <div class="local-rom">
-            <h4>Or load from your device</h4>
-            <input type="file" id="rom-file" accept=".nes" class="file-input">
-            <label for="rom-file" class="file-label">Choose .nes file</label>
-            <span id="file-name" class="file-name"></span>
-          </div>
-        </div>
+      
+      <div id="games-grid" class="games-grid">
+        <div class="loading">Loading games from GitHub...</div>
       </div>
     </div>
 
-    <!-- Game Player View -->
-    <div id="player-view" class="player-view hidden">
+    <!-- Player View -->
+    <div id="player-view" class="hidden">
       <div class="player-header">
-        <button id="back-btn" class="back-btn">← Back to Menu</button>
+        <button id="back-btn" class="back-btn">← Back</button>
         <h2 id="game-title" class="game-title"></h2>
         <div class="player-controls">
-          <button id="fullscreen-btn" class="control-btn" title="Fullscreen">⛶</button>
-          <button id="controls-btn" class="control-btn" title="Controls">🎮</button>
-          <button id="restart-btn" class="control-btn" title="Restart">🔄</button>
+          <button id="fullscreen-btn" title="Fullscreen">⛶</button>
+          <button id="controls-btn" title="Controls">🎮</button>
         </div>
       </div>
       
       <div id="emulator-container" class="emulator-container">
-        <canvas id="nes-canvas"></canvas>
-      </div>
-      
-      <div id="game-controls-panel" class="game-controls-panel hidden">
-        <h3>NES Controls</h3>
-        <div class="controls-grid">
-          <div class="control-item"><span class="key">↑↓←→</span> D-Pad</div>
-          <div class="control-item"><span class="key">Z</span> A Button</div>
-          <div class="control-item"><span class="key">X</span> B Button</div>
-          <div class="control-item"><span class="key">Enter</span> Start</div>
-          <div class="control-item"><span class="key">Shift</span> Select</div>
+        <canvas id="nes-canvas" width="256" height="240"></canvas>
+        <div id="loading-overlay" class="loading-overlay">
+          <div class="loading-text">Loading game...</div>
         </div>
-        <button class="close-btn">Close</button>
       </div>
+    </div>
+
+    <!-- Controls Panel -->
+    <div id="controls-panel" class="controls-panel hidden">
+      <h3>NES Controls</h3>
+      <div class="controls-grid">
+        <div class="control-row"><span class="key">↑ ↓ ← →</span> <span class="action">D-Pad</span></div>
+        <div class="control-row"><span class="key">Z</span> <span class="action">A Button</span></div>
+        <div class="control-row"><span class="key">X</span> <span class="action">B Button</span></div>
+        <div class="control-row"><span class="key">Enter</span> <span class="action">Start</span></div>
+        <div class="control-row"><span class="key">Shift</span> <span class="action">Select</span></div>
+      </div>
+      <button id="close-controls" class="btn">Close</button>
     </div>
   </main>
 
-  <!-- Help Modal -->
-  <div id="help-modal" class="modal hidden">
-    <div class="modal-content">
-      <h2>🎮 How to Play</h2>
-      <ul>
-        <li>Click a game from the menu to play</li>
-        <li>Or load your own ROM from a URL or file</li>
-        <li>Use keyboard controls shown in the controls panel</li>
-        <li>Click the game area to focus and enable controls</li>
-        <li>Press <strong>F11</strong> for fullscreen mode</li>
-      </ul>
-      <h3>🕹️ NES Controls</h3>
-      <div class="controls-help">
-        <p><strong>D-Pad:</strong> Arrow keys</p>
-        <p><strong>A Button:</strong> Z</p>
-        <p><strong>B Button:</strong> X</p>
-        <p><strong>Start:</strong> Enter</p>
-        <p><strong>Select:</strong> Shift</p>
-      </div>
-      <button class="close-btn">Got it!</button>
-    </div>
-  </div>
-
-  <!-- Error Toast -->
-  <div id="error-toast" class="error-toast hidden"></div>
-  <div id="success-toast" class="success-toast hidden"></div>
+  <!-- Toast Messages -->
+  <div id="toast" class="toast hidden"></div>
 
   <footer class="footer">
-    <p>Powered by jsnes emulator | NES Arcade © 2024</p>
+    <p>Powered by jsnes emulator | Games from retrobrews/nes-games</p>
   </footer>
 
-  <!-- jsnes NES emulator -->
   <script src="https://cdn.jsdelivr.net/npm/jsnes@1.2.1/dist/jsnes.min.js"></script>
   <script src="/app.js"></script>
 </body>
