@@ -4,7 +4,6 @@ import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import healthRoutes from './health-check.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,8 +19,10 @@ app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Health check routes
-app.use('/health', healthRoutes);
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', service: 'nes-arcade', timestamp: new Date().toISOString() });
+});
 
 // Serve static files from public directory
 const publicPath = path.join(__dirname, '../public');
@@ -29,47 +30,84 @@ app.use(express.static(publicPath));
 
 // Serve game ROMs from games directory
 const gamesPath = path.join(__dirname, '../games');
-app.use('/games', express.static(gamesPath));
+app.use('/roms', express.static(gamesPath));
+
+// Built-in NES game library (public domain/homebrew ROMs)
+const BUILTIN_NES_GAMES = [
+  {
+    id: 'nes/little-medusa',
+    name: 'Little Medusa',
+    category: 'Puzzle',
+    platform: 'nes',
+    description: 'A puzzle game where you help Medusa escape a maze',
+    year: '2010',
+    romPath: 'https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/little-medusa.nes',
+    screenshot: null
+  },
+  {
+    id: 'nes/neko',
+    name: 'Neko',
+    category: 'Action',
+    platform: 'nes',
+    description: 'A cute cat adventure game',
+    year: '2011',
+    romPath: 'https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/neko.nes',
+    screenshot: null
+  },
+  {
+    id: 'nes/concentration-room',
+    name: 'Concentration Room',
+    category: 'Puzzle',
+    platform: 'nes',
+    description: 'A memory matching game',
+    year: '2010',
+    romPath: 'https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/concentration-room.nes',
+    screenshot: null
+  },
+  {
+    id: 'nes/driar',
+    name: 'Driar',
+    category: 'Adventure',
+    platform: 'nes',
+    description: 'A dragon-themed platformer',
+    year: '2011',
+    romPath: 'https://raw.githubusercontent.com/freeman12x/nes-roms/main/homebrew/driar.nes',
+    screenshot: null
+  }
+];
+
+// Built-in DOS games (existing structure)
+const BUILTIN_DOS_GAMES = [];
 
 // API route to get list of available games
 app.get('/api/games', async (req, res) => {
   try {
     const fs = await import('fs');
     const gamesDir = path.join(__dirname, '../games');
+    const games = [...BUILTIN_NES_GAMES];
     
-    if (!fs.existsSync(gamesDir)) {
-      return res.json({ games: [] });
-    }
-    
-    const categories = fs.readdirSync(gamesDir, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
-    
-    const games = [];
-    
-    for (const category of categories) {
-      const categoryPath = path.join(gamesDir, category);
-      const gameFolders = fs.readdirSync(categoryPath, { withFileTypes: true })
+    // Also scan local games directory for additional ROMs
+    if (fs.existsSync(gamesDir)) {
+      const categories = fs.readdirSync(gamesDir, { withFileTypes: true })
         .filter(dirent => dirent.isDirectory())
         .map(dirent => dirent.name);
       
-      for (const game of gameFolders) {
-        const gamePath = path.join(categoryPath, game);
-        const infoPath = path.join(gamePath, 'info.json');
+      for (const category of categories) {
+        const categoryPath = path.join(gamesDir, category);
+        const items = fs.readdirSync(categoryPath, { withFileTypes: true });
         
-        if (fs.existsSync(infoPath)) {
-          const info = JSON.parse(fs.readFileSync(infoPath, 'utf-8'));
-          games.push({
-            id: `${category}/${game}`,
-            category,
-            name: info.name || game,
-            description: info.description || '',
-            controls: info.controls || '',
-            year: info.year || '',
-            publisher: info.publisher || '',
-            screenshot: info.screenshot || `/games/${category}/${game}/screenshot.png`,
-            romPath: `/games/${category}/${game}/game.zip`
-          });
+        for (const item of items) {
+          if (item.isFile() && item.name.endsWith('.nes')) {
+            const name = item.name.replace('.nes', '').replace(/-/g, ' ');
+            games.push({
+              id: `local/${category}/${item.name}`,
+              name: name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+              category: category.charAt(0).toUpperCase() + category.slice(1),
+              description: 'Local ROM',
+              romUrl: `/roms/${category}/${item.name}`,
+              screenshot: null
+            });
+          }
         }
       }
     }
@@ -77,7 +115,7 @@ app.get('/api/games', async (req, res) => {
     res.json({ games });
   } catch (error) {
     console.error('Error loading games:', error);
-    res.status(500).json({ error: 'Failed to load games', games: [] });
+    res.json({ games: BUILTIN_NES_GAMES });
   }
 });
 
@@ -98,9 +136,10 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🕹️  Retro Arcade Webapp running on port ${PORT}`);
+  console.log(`🎮 NES Arcade Webapp running on port ${PORT}`);
   console.log(`🌐 Environment: ${NODE_ENV}`);
   console.log(`💚 Health check: http://localhost:${PORT}/health`);
+  console.log(`🕹️  Games available: ${BUILTIN_NES_GAMES.length} built-in`);
 });
 
 export default app;
